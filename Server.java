@@ -23,7 +23,6 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
 import org.jaudiotagger.audio.*;
-import org.jaudiotagger.audio.exceptions.CannotReadException;
 import org.jaudiotagger.audio.mp3.MP3AudioHeader;
 import org.jaudiotagger.audio.mp3.MP3File;
 import org.jaudiotagger.tag.images.Artwork;
@@ -35,22 +34,149 @@ public class Server
     static String logPath = "server.log";
     static LocalDateTime time;
     static DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss.SSS");
+    HttpServer server;
 
-    public static void main(String[] args) throws Exception 
+    public Server() throws Exception
     {
         Logger.getLogger("org.jaudiotagger").setLevel(Level.OFF);
         System.out.println("Reading audio files...");
         ReadAllMusic();
         System.out.println("Server booting...");
-        HttpServer server = HttpServer.create(new InetSocketAddress(80), 0);
+
+        try
+        {
+            server = HttpServer.create(new InetSocketAddress(80), 0);
+        }
+        catch (IOException e)
+        {
+            System.out.println("An error occurred creating a server instance:");
+            System.out.println(e.getMessage());
+            throw new Exception(e);
+        }
+
         server.createContext("/", new HanRoot());
         server.createContext("/res", new HanRes());
         server.setExecutor(null); // creates a default executor
+    }
+
+    public void start()
+    {
         server.start();
         System.out.println("Server running...");
-    } 
+    }
 
-    static class HanRoot implements HttpHandler
+    private void ReadAllMusic()
+    {
+        try (Stream<Path> paths = Files.walk(Paths.get("res/music")))
+        {
+            paths.filter(Files::isRegularFile)
+            .filter(f -> f.getFileName().toString().toLowerCase().endsWith(".mp3"))
+            .forEach(f -> ReadMp3(f));
+        }
+        catch (IOException e)
+        {
+            System.out.println("Failed to read music files.");
+        }
+    }
+
+    private void ReadMp3(Path filepath)
+    {
+        System.out.println(String.format("Reading %s", filepath.getFileName()));
+        try
+        {
+            MP3File f = (MP3File)AudioFileIO.read(filepath.toFile());
+            MP3AudioHeader audioHeader = f.getMP3AudioHeader();
+
+            System.out.println(String.format("Track length: %s", audioHeader.getTrackLengthAsString()));
+            System.out.println(String.format("Track title: %s", f.getID3v1Tag().getTitle().get(0)));
+
+            Artwork coverArt = f.getTag().getFirstArtwork();
+            
+            try (FileOutputStream fos = new FileOutputStream(new File("res/music/coverArt.jpg")))
+            {
+                fos.write(coverArt.getBinaryData());
+            }
+        }
+        catch (Exception e)
+        {
+            System.out.println("An unexpected error occurred:");
+            System.out.println(e.getMessage());
+        }
+    }
+
+
+    //#region Helper Methods
+
+    private byte[] getHTML(String name) throws IOException
+    {
+        byte[] html = Files.readAllBytes(new File(name).toPath());
+        return html;
+    }
+
+    private byte[] getFile(String filename)
+    {
+        byte[] data = null;
+        try 
+        {
+            data = Files.readAllBytes(new File(filename).toPath());
+        }
+        catch (IOException e)
+        {
+            System.out.println("File \"" + filename + "\" cannot be found.");
+        }
+        return data;
+    }
+
+    private void log(String s)
+    {
+        time = LocalDateTime.now();
+        try
+        {
+            PrintWriter l = new PrintWriter(new FileOutputStream(new File(logPath), true));
+            l.append("[" + time.format(formatter) + "]: " + s + "\n");
+            l.close();
+        }
+        catch (IOException e)
+        {
+            System.out.println("Error writing to log.");
+            System.out.println("Failed to log: \"" + s + "\"");
+        }
+        
+    }
+
+    private HashMap<String, String> parseForm(String data)
+    {
+        HashMap<String, String> form = new HashMap<String, String>();
+        int index = 0;
+        int prevIndex;
+        while (true)
+        {
+            prevIndex = index;
+            index = data.indexOf("form-data; name=\"", index) + 17; //start of field name
+            if (index != -1 && index > prevIndex)
+            {
+                int start = index;
+                int end = data.indexOf("\"", start);                //end of field name
+                String key = data.substring(start, end);
+                start = end + 3;                             //end of field name: start of data (less leading \n\n)
+                end = data.indexOf("------WebKit", end) - 1;    //end of data (less trailing \n);
+                String value = data.substring(start, end);
+                form.put(key, value);
+                index = end;
+            }
+            else
+            {
+                break;
+            }
+        }
+        return form;
+    }
+
+    //#endregion
+
+    //#region Route Handlers
+
+    private class HanRoot implements HttpHandler
     {
         HttpExchange t;
 
@@ -148,7 +274,7 @@ public class Server
         }
     }
 
-    static class HanRes implements HttpHandler
+    private class HanRes implements HttpHandler
     {
         HttpExchange t;
 
@@ -196,107 +322,12 @@ public class Server
         }
     }
 
-    private static byte[] getHTML(String name) throws IOException
+    //#endregion
+    
+    public static void main(String[] args) throws Exception 
     {
-        byte[] html = Files.readAllBytes(new File(name).toPath());
-        return html;
-    }
+        Server server = new Server();
+        server.start();
+    } 
 
-    private static byte[] getFile(String filename)
-    {
-        byte[] data = null;
-        try 
-        {
-            data = Files.readAllBytes(new File(filename).toPath());
-        }
-        catch (IOException e)
-        {
-            System.out.println("File \"" + filename + "\" cannot be found.");
-        }
-        return data;
-    }
-
-    private static HashMap<String, String> parseForm(String data)
-    {
-        HashMap<String, String> form = new HashMap<String, String>();
-        int index = 0;
-        int prevIndex;
-        while (true)
-        {
-            prevIndex = index;
-            index = data.indexOf("form-data; name=\"", index) + 17; //start of field name
-            if (index != -1 && index > prevIndex)
-            {
-                int start = index;
-                int end = data.indexOf("\"", start);                //end of field name
-                String key = data.substring(start, end);
-                start = end + 3;                             //end of field name: start of data (less leading \n\n)
-                end = data.indexOf("------WebKit", end) - 1;    //end of data (less trailing \n);
-                String value = data.substring(start, end);
-                form.put(key, value);
-                index = end;
-            }
-            else
-            {
-                break;
-            }
-        }
-        return form;
-    }
-
-    private static void ReadAllMusic()
-    {
-        try (Stream<Path> paths = Files.walk(Paths.get("res/music")))
-        {
-            paths.filter(Files::isRegularFile)
-            .filter(f -> f.getFileName().toString().toLowerCase().endsWith(".mp3"))
-            .forEach(f -> ReadMp3(f));
-        }
-        catch (IOException e)
-        {
-            System.out.println("Failed to read music files.");
-        }
-    }
-
-    private static void ReadMp3(Path filepath)
-    {
-        System.out.println(String.format("Reading %s", filepath.getFileName()));
-        try
-        {
-            MP3File f = (MP3File)AudioFileIO.read(filepath.toFile());
-            MP3AudioHeader audioHeader = f.getMP3AudioHeader();
-
-            System.out.println(String.format("Track length: %s", audioHeader.getTrackLengthAsString()));
-            System.out.println(String.format("Track title: %s", f.getID3v1Tag().getTitle().get(0)));
-
-            Artwork coverArt = f.getTag().getFirstArtwork();
-            
-            try (FileOutputStream fos = new FileOutputStream(new File("res/music/coverArt.jpg")))
-            {
-                fos.write(coverArt.getBinaryData());
-            }
-        }
-        catch (Exception e)
-        {
-            System.out.println("An unexpected error occurred:");
-            System.out.println(e.getMessage());
-        }
-    }
-
-    static void log(String s)
-    {
-        time = LocalDateTime.now();
-        try
-        {
-            PrintWriter l = new PrintWriter(new FileOutputStream(new File(logPath), true));
-            l.append("[" + time.format(formatter) + "]: " + s + "\n");
-            l.close();
-        }
-        catch (IOException e)
-        {
-            System.out.println("Error writing to log.");
-            System.out.println("Failed to log: \"" + s + "\"");
-        }
-        
-    }
 }
