@@ -87,14 +87,23 @@ public class Server
             MP3File f = (MP3File)AudioFileIO.read(filepath.toFile());
             MP3AudioHeader audioHeader = f.getMP3AudioHeader();
 
-            System.out.println(String.format("Track length: %s", audioHeader.getTrackLengthAsString()));
-            System.out.println(String.format("Track title: %s", f.getID3v1Tag().getTitle().get(0)));
+            String trackLength = audioHeader.getTrackLengthAsString();
+            String trackTitle = f.getID3v1Tag().getFirstTitle();
+            String ablumTitle = f.getID3v1Tag().getFirstAlbum();
 
-            Artwork coverArt = f.getTag().getFirstArtwork();
-            
-            try (FileOutputStream fos = new FileOutputStream(new File("res/music/coverArt.jpg")))
+            System.out.println(String.format("Track title: %s", trackTitle));
+            System.out.println(String.format("Album: %s", ablumTitle));
+            System.out.println(String.format("Track length: %s", trackLength));
+
+            File albumArtFile = new File(String.format("res/music/%s.jpg", ablumTitle)); 
+
+            if (!albumArtFile.exists())
             {
-                fos.write(coverArt.getBinaryData());
+                Artwork coverArt = f.getTag().getFirstArtwork();
+                try (FileOutputStream fos = new FileOutputStream(new File(String.format("res/music/%s.jpg", ablumTitle))))
+                {
+                    fos.write(coverArt.getBinaryData());
+                }
             }
         }
         catch (Exception e)
