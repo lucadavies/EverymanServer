@@ -254,7 +254,7 @@ public class Server
         }
         catch (IOException e)
         {
-            System.out.println("Failed to read music files");
+            System.out.println("Failed to read music files.");
         }
     }
 
