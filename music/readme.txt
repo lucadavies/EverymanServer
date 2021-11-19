@@ -1,0 +1,1 @@
+Contains auto-generated pages for each song in /res/library.
