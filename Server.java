@@ -1,5 +1,8 @@
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.FilenameFilter;
 import java.io.BufferedReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -9,6 +12,7 @@ import java.time.format.DateTimeFormatter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.io.Writer;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.List;
@@ -56,6 +60,7 @@ public class Server
 
         server.createContext("/", new HanRoot());
         server.createContext("/res", new HanRes());
+        server.createContext("/music", new HanMusic());
         server.setExecutor(null); // creates a default executor
     }
 
@@ -89,21 +94,28 @@ public class Server
 
             String trackLength = audioHeader.getTrackLengthAsString();
             String trackTitle = f.getID3v1Tag().getFirstTitle();
-            String ablumTitle = f.getID3v1Tag().getFirstAlbum();
+            String albumTitle = f.getID3v1Tag().getFirstAlbum();
 
             System.out.println(String.format("Track title: %s", trackTitle));
-            System.out.println(String.format("Album: %s", ablumTitle));
+            System.out.println(String.format("Album: %s", albumTitle));
             System.out.println(String.format("Track length: %s", trackLength));
 
-            File albumArtFile = new File(String.format("res/music/%s.jpg", ablumTitle)); 
+            File albumArtFile = new File(String.format("res/music/%s.jpg", albumTitle)); 
+            File playPage = new File(String.format("music/%s", filepath.getFileName()));
 
             if (!albumArtFile.exists())
             {
                 Artwork coverArt = f.getTag().getFirstArtwork();
-                try (FileOutputStream fos = new FileOutputStream(new File(String.format("res/music/%s.jpg", ablumTitle))))
+                try (FileOutputStream fos = new FileOutputStream(new File(String.format("res/music/%s.jpg", albumTitle))))
                 {
                     fos.write(coverArt.getBinaryData());
                 }
+            }
+            if (!playPage.exists())
+            {
+                String fileName = playPage.getName();
+                String fileNameBase = fileName.substring(0, fileName.length() - 4);
+                CreateMusicPages(fileNameBase, trackTitle, albumTitle);
             }
         }
         catch (Exception e)
@@ -113,6 +125,22 @@ public class Server
         }
     }
 
+    private void CreateMusicPages(String fileName, String title, String album) throws IOException
+    {
+        FileWriter writer = new FileWriter("music/" + fileName + ".html");
+        writer.append("<!DOCTYPE html>");
+        writer.append("\n<html>");
+        writer.append("\n  <body>");
+        writer.append("\n    <h2>" + title + "</h2>");
+        writer.append("\n    <h3>" + album + "</h3>");
+        writer.append("\n    <image src=\"../res/music/" + album + ".jpg\">");
+        writer.append("\n    <audio controls>");
+        writer.append("\n      <source src=\"../res/music/" + fileName + ".mp3\" type=\"audio/mpeg\">");
+        writer.append("\n    </audio>");
+        writer.append("\n  </body>");
+        writer.append("\n</html>");
+        writer.close();
+    }
 
     //#region Helper Methods
 
@@ -203,9 +231,9 @@ public class Server
             {
             rHeaders += (h + "\n");
             }
-            System.out.println("Method: " + method);
-            System.out.println("Headers:\n" + headers);
-            System.out.println("RespHeaders: " + rHeaders);
+            // System.out.println("Method: " + method);
+            // System.out.println("Headers:\n" + headers);
+            // System.out.println("RespHeaders: " + rHeaders);
 
             if (method.equals("GET"))
             {
@@ -309,6 +337,44 @@ public class Server
                 t.sendResponseHeaders(404, resp.length);
                 t.getResponseBody().write(resp);
             }     
+            t.close();
+        }
+
+        private void get(String uri) throws IOException
+        {
+            byte[] resp = getFile(uri.substring(1));
+            if (resp != null) 
+            {
+                t.getResponseHeaders().set("content-type", "attachment");
+                t.sendResponseHeaders(200, resp.length);
+                t.getResponseBody().write(resp);
+            }
+            else
+            {
+                resp = resp404.getBytes();
+                t.getResponseHeaders().set("content-type", "text/html");
+                t.sendResponseHeaders(404, resp.length);
+                t.getResponseBody().write(resp);
+            }
+        }
+    }
+
+    private class HanMusic implements HttpHandler
+    {
+        HttpExchange t;
+
+        public void handle(HttpExchange httpEx) throws IOException
+        {
+            this.t = httpEx;
+            String method = t.getRequestMethod();
+
+            if (method.equals("GET"))
+            {
+                String s = t.getRemoteAddress() + "| GET: " + t.getRequestURI().toString() + " (HanMusic)";
+                log(s);
+                System.out.println(s);
+                get(t.getRequestURI().toString());
+            }
             t.close();
         }
 
