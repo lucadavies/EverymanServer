@@ -2,7 +2,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
-import java.io.FilenameFilter;
 import java.io.BufferedReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,6 +13,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.Writer;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +39,8 @@ public class Server
     static LocalDateTime time;
     static DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss.SSS");
     HttpServer server;
+
+    ArrayList<TrackInfo> tracks = new ArrayList<TrackInfo>();
 
     public Server() throws Exception
     {
@@ -77,6 +79,8 @@ public class Server
             paths.filter(Files::isRegularFile)
             .filter(f -> f.getFileName().toString().toLowerCase().endsWith(".mp3"))
             .forEach(f -> ReadMp3(f));
+
+            CreateLibraryPage("library.html", tracks);
         }
         catch (IOException e)
         {
@@ -115,8 +119,10 @@ public class Server
             {
                 String fileName = playPage.getName();
                 String fileNameBase = fileName.substring(0, fileName.length() - 4);
-                CreateMusicPages(fileNameBase, trackTitle, albumTitle);
+                CreateMusicPage(fileNameBase, trackTitle, albumTitle);
             }
+
+            tracks.add(new TrackInfo(trackTitle, albumTitle, trackLength, albumArtFile.toPath().toString(), trackTitle));
         }
         catch (Exception e)
         {
@@ -125,7 +131,7 @@ public class Server
         }
     }
 
-    private void CreateMusicPages(String fileName, String title, String album) throws IOException
+    private void CreateMusicPage(String fileName, String title, String album) throws IOException
     {
         FileWriter writer = new FileWriter("music/" + fileName + ".html");
         writer.append("<!DOCTYPE html>");
@@ -138,6 +144,31 @@ public class Server
         writer.append("\n      <source src=\"../res/library/" + fileName + ".mp3\" type=\"audio/mpeg\">");
         writer.append("\n      Your browser does not supprt HTML5 audio.");
         writer.append("\n    </audio>");
+        writer.append("\n  </body>");
+        writer.append("\n</html>");
+        writer.close();
+    }
+
+    private void CreateLibraryPage(String fileName, ArrayList<TrackInfo> tracks) throws IOException
+    {
+        FileWriter writer = new FileWriter(fileName);
+        writer.append("<!DOCTYPE html>");
+        writer.append("\n<html>");
+        writer.append("\n  <body>");
+        writer.append("\n    <table>");
+        writer.append("\n      <tbody>");
+        for (TrackInfo track : tracks)
+        {
+            writer.append("\n      <tr>");
+            writer.append("\n        <td><image src=\"" + track.getArtworkPath() + "\"></td>");
+            writer.append("\n        <td>" + track.getTitle() + "</td>");
+            writer.append("\n        <td>" + track.getAlbumTitle() + "</td>");
+            writer.append("\n        <td>" + track.getLength() + "s</td>");
+            writer.append("\n        <td><a href=\"" + track.getPagePath() + "\">Play</a></td>");
+            writer.append("\n      </tr>");
+        }
+        writer.append("\n      </tbody>");
+        writer.append("\n    </table>");
         writer.append("\n  </body>");
         writer.append("\n</html>");
         writer.close();
@@ -267,6 +298,13 @@ public class Server
             {
                 resp = getFile("favicon.ico");
                 t.getResponseHeaders().set("content-type", "attachment");
+                t.sendResponseHeaders(200, resp.length);
+                t.getResponseBody().write(resp);
+            }
+            else if (uri.matches("/library.html"))
+            {
+                resp = getFile("library.html");
+                t.getResponseHeaders().set("content-type", "text/html");
                 t.sendResponseHeaders(200, resp.length);
                 t.getResponseBody().write(resp);
             }
