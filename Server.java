@@ -134,8 +134,9 @@ public class Server
         writer.append("\n    <h2>" + title + "</h2>");
         writer.append("\n    <h3>" + album + "</h3>");
         writer.append("\n    <image src=\"../res/music/" + album + ".jpg\">");
-        writer.append("\n    <audio controls>");
+        writer.append("\n    <audio id=\"music\" controls>");
         writer.append("\n      <source src=\"../res/music/" + fileName + ".mp3\" type=\"audio/mpeg\">");
+        writer.append("\n      Your browser does not supprt HTML5 audio.");
         writer.append("\n    </audio>");
         writer.append("\n  </body>");
         writer.append("\n</html>");
