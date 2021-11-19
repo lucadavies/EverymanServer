@@ -72,7 +72,7 @@ public class Server
 
     private void ReadAllMusic()
     {
-        try (Stream<Path> paths = Files.walk(Paths.get("res/music")))
+        try (Stream<Path> paths = Files.walk(Paths.get("res/library")))
         {
             paths.filter(Files::isRegularFile)
             .filter(f -> f.getFileName().toString().toLowerCase().endsWith(".mp3"))
@@ -100,13 +100,13 @@ public class Server
             System.out.println(String.format("Album: %s", albumTitle));
             System.out.println(String.format("Track length: %s", trackLength));
 
-            File albumArtFile = new File(String.format("res/music/%s.jpg", albumTitle)); 
+            File albumArtFile = new File(String.format("res/library/%s.jpg", albumTitle)); 
             File playPage = new File(String.format("music/%s", filepath.getFileName()));
 
             if (!albumArtFile.exists())
             {
                 Artwork coverArt = f.getTag().getFirstArtwork();
-                try (FileOutputStream fos = new FileOutputStream(new File(String.format("res/music/%s.jpg", albumTitle))))
+                try (FileOutputStream fos = new FileOutputStream(new File(String.format("res/library/%s.jpg", albumTitle))))
                 {
                     fos.write(coverArt.getBinaryData());
                 }
@@ -133,9 +133,9 @@ public class Server
         writer.append("\n  <body>");
         writer.append("\n    <h2>" + title + "</h2>");
         writer.append("\n    <h3>" + album + "</h3>");
-        writer.append("\n    <image src=\"../res/music/" + album + ".jpg\">");
+        writer.append("\n    <image src=\"../res/library/" + album + ".jpg\">");
         writer.append("\n    <audio id=\"music\" controls>");
-        writer.append("\n      <source src=\"../res/music/" + fileName + ".mp3\" type=\"audio/mpeg\">");
+        writer.append("\n      <source src=\"../res/library/" + fileName + ".mp3\" type=\"audio/mpeg\">");
         writer.append("\n      Your browser does not supprt HTML5 audio.");
         writer.append("\n    </audio>");
         writer.append("\n  </body>");
