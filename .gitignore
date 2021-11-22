@@ -3,7 +3,6 @@
 *.jar
 connect.log
 post.txt
-res/music
 music/*.html
 library.html
 *.mp3
