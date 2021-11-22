@@ -288,7 +288,7 @@ public class Server
         {
             this.t = httpEx;
             String method = t.getRequestMethod();
-            String decodedURI = URLDecoder.decode(t.getRequestURI().toString(), StandardCharsets.UTF_8);
+            String decodedURI = URLDecoder.decode(t.getRequestURI().toString(), StandardCharsets.UTF_8.name());
             String headers = "";
             for (Map.Entry<String, List<String>> h : t.getRequestHeaders().entrySet())
             {
@@ -391,7 +391,7 @@ public class Server
         {
             this.t = httpEx;
             String method =  t.getRequestMethod();
-            String decodedURI = URLDecoder.decode(t.getRequestURI().toString(), StandardCharsets.UTF_8);
+            String decodedURI = URLDecoder.decode(t.getRequestURI().toString(), StandardCharsets.UTF_8.name());
            
             if (method.equals("GET"))
             {
@@ -430,7 +430,7 @@ public class Server
         {
             this.t = httpEx;
             String method = t.getRequestMethod();
-            String decodedURI = URLDecoder.decode(t.getRequestURI().toString(), StandardCharsets.UTF_8);
+            String decodedURI = URLDecoder.decode(t.getRequestURI().toString(), StandardCharsets.UTF_8.name());
 
             if (method.equals("GET"))
             {
