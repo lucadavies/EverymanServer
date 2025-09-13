@@ -1,1 +1,1 @@
-javac -cp jaudiotagger-2.2.6-SNAPSHOT.jar *.java
+javac -cp json-20250517.jar *.java

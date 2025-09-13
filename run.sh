@@ -1,1 +1,1 @@
-sudo java -cp jaudiotagger-2.2.6-SNAPSHOT.jar:. Server
+sudo java -cp json-20250517.jar:. Server
