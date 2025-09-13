@@ -7,3 +7,4 @@ music/*.html
 library.html
 *.mp3
 *.jpg
+eclipse-formatter.xml

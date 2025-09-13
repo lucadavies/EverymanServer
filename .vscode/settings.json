@@ -1,7 +1,10 @@
 {
     "java.project.referencedLibraries": [
         "lib/**/*.jar",
-        "jaudiotagger-2.2.6-SNAPSHOT.jar"
+        "json-20250517.jar"
     ],
-    "java.format.settings.url": "eclipse-formatter.xml"
+    "java.format.settings.url": "eclipse-formatter.xml",
+    "[java]": {
+        "editor.defaultFormatter": "redhat.java"
+    }
 }
