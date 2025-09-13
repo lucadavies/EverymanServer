@@ -142,6 +142,9 @@ public class Server
         LocalDateTime today = LocalDateTime.now();
         String apiCall = "https://everymantheatre.yesplan.be/api/events/date:" + today.format(apiCallFormatter) + "?api_key=" + yesPlanApiKey;
 
+        String s = "Getting events for today (" + today.format(apiCallFormatter) + ")";
+        System.out.println(s);
+
         URL url = null;
         JSONObject apiResp = null;
         try
@@ -208,7 +211,7 @@ public class Server
 
         JSONArray jsonEvents = apiResp.getJSONArray("data");
 
-        for (int i = 0; i < jsonEvents.length() - 1; i++)
+        for (int i = 0; i < jsonEvents.length(); i++)
         {
             events.add(jsonEvents.getJSONObject(i));
         }
