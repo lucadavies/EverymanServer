@@ -24,21 +24,8 @@
                 padding: 10px;
             }
         </style>
-        <script src='require.js'></script>
-        <script>
-            function loadAlbumCovertArt()
-            {
-                console.log("ahhh");
-                var fs = require('fs');
-                var files = fs.readdirSync('/res/misc/');
-                foreach (file in files) 
-                {
-                    document.getElementById("albums").innerHTML += "stuff";
-                }
-            }
-        </script>
     </head>
-    <body style="font-family: sans-serif;" onLoad="loadAlbumCovertArt()">
+    <body style="font-family: Century Gothic;">
         <div>
             <span>Code maintained at <a href="https://github.com/lucadavies/EverymanServer">https://github.com/lucadavies/EverymanServer</a></span>
         </div>
@@ -48,15 +35,10 @@
             </h1>
             <div class="content">
                 <h2>Testing...</h2>
-                <img src="res/avatar.png">
-            </div>
-            <div class="content">
-                <hr>
-                <h2>Audio Test</h2>
-                <a href="/library.html">Music Library</a>
-            </div>
-            <div id="albums" class="content">
-
+                <img src="res/EverymanLogo.png">
+                <p style="font-size:24px;">
+                    <a href="/events.html">Today's Events</a>
+                </p>
             </div>
         </div>
     </body>

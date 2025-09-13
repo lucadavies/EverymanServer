@@ -6,14 +6,22 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.InetSocketAddress;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.net.URLDecoder;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,27 +34,24 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
-import org.jaudiotagger.audio.*;
-import org.jaudiotagger.audio.mp3.MP3AudioHeader;
-import org.jaudiotagger.audio.mp3.MP3File;
-import org.jaudiotagger.tag.images.Artwork;
+import org.json.*;
 
 public class Server
 {
 
     static String resp404 = "<html><body><h1>404: Page not found</h3><a href=\"/\">Return to root</a></body></html>";
+    static String yesPlanApiKey = "";
     static String logPath = "server.log";
     static LocalDateTime time;
-    static DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss.SSS");
+    static DateTimeFormatter logFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss.SSS");
+    static DateTimeFormatter apiCallFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+    static DateTimeFormatter eventDisplayFormatter = DateTimeFormatter.ofPattern("HH:mm");
     HttpServer server;
 
-    ArrayList<TrackInfo> tracks = new ArrayList<TrackInfo>();
-
-    public Server() throws Exception
+    public Server() // throws Exception
     {
         Logger.getLogger("org.jaudiotagger").setLevel(Level.OFF);
         System.out.println("Reading audio files...");
-        ReadAllMusic();
         System.out.println("Server booting...");
 
         try
@@ -57,12 +62,12 @@ public class Server
         {
             System.out.println("An error occurred creating a server instance:");
             System.out.println(e.getMessage());
-            throw new Exception(e);
+            // throw new Exception(e);
         }
 
         server.createContext("/", new HanRoot());
         server.createContext("/res", new HanRes());
-        server.createContext("/music", new HanMusic());
+        server.createContext("/events", new HanEvents());
         server.setExecutor(null); // creates a default executor
     }
 
@@ -72,144 +77,146 @@ public class Server
         System.out.println("Server running...");
     }
 
-    private void ReadAllMusic()
-    {
-        try (Stream<Path> paths = Files.walk(Paths.get("res/library")))
-        {
-            paths.filter(Files::isRegularFile)
-            .filter(f -> f.getFileName().toString().toLowerCase().endsWith(".mp3"))
-            .forEach(f -> ReadMp3(f));
-        }
-        catch (IOException e)
-        {
-            System.out.println("Failed to read music files.");
-        }
-
-        CreateLibraryPage("library.html", tracks);
-        CreatePlayPages(tracks);
-    }
-
-    private void ReadMp3(Path filepath)
-    {
-        System.out.println(String.format("Reading %s", filepath.getFileName()));
-        try
-        {
-            MP3File f = (MP3File)AudioFileIO.read(filepath.toFile());
-            MP3AudioHeader audioHeader = f.getMP3AudioHeader();
-
-            String trackLength = audioHeader.getTrackLengthAsString();
-            String trackTitle = f.getID3v1Tag().getFirstTitle();
-            String albumTitle = f.getID3v1Tag().getFirstAlbum();
-
-            System.out.println(String.format("Track title: %s", trackTitle));
-            System.out.println(String.format("Album: %s", albumTitle));
-            System.out.println(String.format("Track length: %s", trackLength));
-
-            File albumArtFile = new File(String.format("res/library/%s.jpg", albumTitle)); 
-            File playPage = new File(String.format("music/%s", filepath.getFileName()));
-
-            if (!albumArtFile.exists())
-            {
-                Artwork coverArt = f.getTag().getFirstArtwork();
-                try (FileOutputStream fos = new FileOutputStream(new File(String.format("res/library/%s.jpg", albumTitle))))
-                {
-                    fos.write(coverArt.getBinaryData());
-                }
-            }
-
-            tracks.add(new TrackInfo(
-                trackTitle,
-                albumTitle,
-                trackLength,
-                "music/" + playPage.getName().substring(0, playPage.getName().length() - 4) + ".html",
-                "res/library/" + filepath.getFileName().toString(),
-                "res/library/" + albumArtFile.getName()
-            ));
-        }
-        catch (Exception e)
-        {
-            System.out.println("An unexpected error occurred:");
-            System.out.println(e.getMessage());
-        }
-    }
-
-    private void CreatePlayPages(ArrayList<TrackInfo> tracks)
+    private void CreateEventsPage(ArrayList<JSONObject> events)
     {
         try
         {
             FileWriter writer = null;
-            File f;
-        for (TrackInfo track : tracks)
-        {
-            f = new File(track.getPagePath());
-            if (f.createNewFile())
+            OffsetDateTime time = null;
+
+            writer = new FileWriter("events.html");
+            writer.append("<!DOCTYPE html>");
+            writer.append("\n<html>");
+            writer.append("\n  <head>");
+            writer.append("\n    <style>");
+            writer.append("\n      html * { font-family: Century Gothic; }");
+            writer.append("\n      table, th, td { font-size: 24px; border: 1px solid black; border-collapse: collapse; }");
+            writer.append("\n      th, td { padding: 15px; }");
+            writer.append("\n    </style>");
+            writer.append("\n  </head>");
+            writer.append("\n  <body>");
+            writer.append("\n    <h2>Today's Events</h2>");
+            writer.append("\n    <table>");
+            writer.append("\n      <thead>");
+            writer.append("\n        <tr>");
+            writer.append("\n          <th>Name</th>");
+            writer.append("\n          <th>Start</th>");
+            writer.append("\n          <th>End</th>");
+            writer.append("\n          <th>Location</th>");
+            writer.append("\n        </tr>");
+            writer.append("\n      </thead>");
+            writer.append("\n      <tbody>");
+
+            for (JSONObject event : events)
             {
-                writer = new FileWriter(track.getPagePath());
-                writer.append("<!DOCTYPE html>");
-                writer.append("\n<html>");
-                writer.append("\n  <body>");
-                writer.append("\n    <h2>" + track.getTitle() + "</h2>");
-                writer.append("\n    <h3>" + track.getAlbumTitle() + "</h3>");
-                writer.append("\n    <image src=\"/" + track.getArtworkPath() + "\">");
-                writer.append("\n    <p>");
-                writer.append("\n      <audio id=\"/res/library\" controls>");
-                writer.append("\n        <source src=\"/" + track.getAudioPath() + "\" type=\"audio/mpeg\">");
-                writer.append("\n        Your browser does not supprt HTML5 audio.");
-                writer.append("\n      </audio>");
-                writer.append("\n    </p>");
-                writer.append("\n    <p>");
-                writer.append("\n      <a href=\"/library.html\">Return to Library</a>");
-                writer.append("\n    </p>");
-                writer.append("\n  </body>");
-                writer.append("\n</html>");
+                String startTime = OffsetDateTime.parse(event.getString("starttime"), DateTimeFormatter.ISO_OFFSET_DATE_TIME).format(eventDisplayFormatter);
+                String endTime = OffsetDateTime.parse(event.getString("endtime"), DateTimeFormatter.ISO_OFFSET_DATE_TIME).format(eventDisplayFormatter);
+
+                writer.append("\n        <tr>");
+                writer.append("\n          <td>" + event.getString("name") + "</td>");
+                writer.append("\n          <td>" + startTime + "</td>");
+                writer.append("\n          <td>" + endTime + "</td>");
+                writer.append("\n          <td>" + event.getJSONArray("locations").getJSONObject(0).getString("name") + "</td>");
+                writer.append("\n        </tr>");
             }
+
+            writer.append("\n      </tbody>");
+            writer.append("\n    </table>");
+            writer.append("\n  </body>");
+            writer.append("\n</html>");
 
             if (writer != null)
             {
                 writer.close();
             }
         }
-        }
         catch (IOException e)
         {
-            System.out.println("Error creating play pages: " + e.getMessage());
+            System.out.println("Error creating events page.");
+            System.out.println(e.getMessage());
         }
-        
     }
 
-    private void CreateLibraryPage(String fileName, ArrayList<TrackInfo> tracks)
+    private JSONObject getEvents()
     {
+        LocalDateTime today = LocalDateTime.now();
+        String apiCall = "https://everymantheatre.yesplan.be/api/events/date:" + today.format(apiCallFormatter) + "?api_key=" + yesPlanApiKey;
+
+        URL url = null;
+        JSONObject apiResp = null;
         try
         {
-            FileWriter writer = new FileWriter(fileName);
-            writer.append("<!DOCTYPE html>");
-            writer.append("\n<html>");
-            writer.append("\n  <body>");
-            writer.append("\n    <table>");
-            writer.append("\n      <tbody>");
-            for (TrackInfo track : tracks)
+            url = new URI(apiCall).toURL();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream(), "UTF-8")))
             {
-                writer.append("\n      <tr>");
-                writer.append("\n        <td><image src=\"" + track.getArtworkPath() + "\"></td>");
-                writer.append("\n        <td>" + track.getTitle() + "</td>");
-                writer.append("\n        <td>" + track.getAlbumTitle() + "</td>");
-                writer.append("\n        <td>" + track.getLength() + "s</td>");
-                writer.append("\n        <td><a href=\"" + track.getPagePath() + "\">Play</a></td>");
-                writer.append("\n      </tr>");
+                apiResp = new JSONObject(reader.readLine());
             }
-            writer.append("\n      </tbody>");
-            writer.append("\n    </table>");
-            writer.append("\n  </body>");
-            writer.append("\n</html>");
-            writer.close();
+            catch (IOException e)
+            {
+                System.out.println("Error opening stream to read HTTP response.");
+                System.out.println(e.getMessage());
+            }
         }
-        catch (IOException e)
+        catch (MalformedURLException e)
         {
-            System.out.println("Error creating Library page: " + e.getMessage());
+            System.out.println("Could not create URL from URI from string: " + apiCall);
+            System.out.println(e.getMessage());
         }
+        catch (URISyntaxException e)
+        {
+            System.out.println("URI " + apiCall + " has invalid syntax.");
+            System.out.println(e.getMessage());
+        }
+
+        return apiResp;
     }
 
-    //#region Helper Methods
+    private JSONObject getLatestEvent()
+    {
+        JSONObject apiResp = getEvents();
+
+        if (apiResp == null)
+        {
+            return null;
+        }
+
+        JSONArray events = apiResp.getJSONArray("data");
+        // ArrayList<OffsetDateTime> dateTimes = new ArrayList<OffsetDateTime>();
+        // JSONObject event = null;
+
+        // for (int i = 0; i < events.length() - 1; i++)
+        // {
+        // event = (JSONObject) events.get(i);
+        // dateTimes.add(OffsetDateTime.parse(event.getString("starttime"),
+        // DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+        // }
+
+        // System.out.println(Collections.min(dateTimes));
+
+        return events.getJSONObject(0);
+    }
+
+    private ArrayList<JSONObject> getEventsToday()
+    {
+        ArrayList<JSONObject> events = new ArrayList<>();
+        JSONObject apiResp = getEvents();
+
+        if (apiResp == null)
+        {
+            return events;
+        }
+
+        JSONArray jsonEvents = apiResp.getJSONArray("data");
+
+        for (int i = 0; i < jsonEvents.length() - 1; i++)
+        {
+            events.add(jsonEvents.getJSONObject(i));
+        }
+
+        return events;
+
+    }
+    // #region Helper Methods
 
     private byte[] getHTML(String name) throws IOException
     {
@@ -220,13 +227,14 @@ public class Server
     private byte[] getFile(String filename)
     {
         byte[] data = null;
-        try 
+        try
         {
             data = Files.readAllBytes(new File(filename).toPath());
         }
         catch (IOException e)
         {
             System.out.println("File \"" + filename + "\" cannot be found.");
+            System.out.println(e.getMessage());
         }
         return data;
     }
@@ -237,7 +245,7 @@ public class Server
         try
         {
             PrintWriter l = new PrintWriter(new FileOutputStream(new File(logPath), true));
-            l.append("[" + time.format(formatter) + "]: " + s + "\n");
+            l.append("[" + time.format(logFormatter) + "]: " + s + "\n");
             l.close();
         }
         catch (IOException e)
@@ -245,7 +253,7 @@ public class Server
             System.out.println("Error writing to log.");
             System.out.println("Failed to log: \"" + s + "\"");
         }
-        
+
     }
 
     private HashMap<String, String> parseForm(String data)
@@ -256,19 +264,18 @@ public class Server
         while (true)
         {
             prevIndex = index;
-            index = data.indexOf("form-data; name=\"", index) + 17; //start of field name
+            index = data.indexOf("form-data; name=\"", index) + 17; // start of field name
             if (index != -1 && index > prevIndex)
             {
                 int start = index;
-                int end = data.indexOf("\"", start);                //end of field name
+                int end = data.indexOf("\"", start); // end of field name
                 String key = data.substring(start, end);
-                start = end + 3;                             //end of field name: start of data (less leading \n\n)
-                end = data.indexOf("------WebKit", end) - 1;    //end of data (less trailing \n);
+                start = end + 3; // end of field name: start of data (less leading \n\n)
+                end = data.indexOf("------WebKit", end) - 1; // end of data (less trailing \n);
                 String value = data.substring(start, end);
                 form.put(key, value);
                 index = end;
-            }
-            else
+            } else
             {
                 break;
             }
@@ -276,9 +283,9 @@ public class Server
         return form;
     }
 
-    //#endregion
+    // #endregion
 
-    //#region Route Handlers
+    // #region Route Handlers
 
     private class HanRoot implements HttpHandler
     {
@@ -292,12 +299,12 @@ public class Server
             String headers = "";
             for (Map.Entry<String, List<String>> h : t.getRequestHeaders().entrySet())
             {
-            headers += (h + "\n");
+                headers += (h + "\n");
             }
             String rHeaders = "";
             for (Map.Entry<String, List<String>> h : t.getResponseHeaders().entrySet())
             {
-            rHeaders += (h + "\n");
+                rHeaders += (h + "\n");
             }
 
             if (method.equals("GET"))
@@ -326,36 +333,31 @@ public class Server
                 t.getResponseHeaders().set("content-type", "text/html");
                 t.sendResponseHeaders(200, resp.length);
                 t.getResponseBody().write(resp);
-            }
-            else if (uri.matches("/favicon.ico"))
+            } else if (uri.matches("/favicon.ico"))
             {
                 resp = getFile("favicon.ico");
                 t.getResponseHeaders().set("content-type", "attachment");
                 t.sendResponseHeaders(200, resp.length);
                 t.getResponseBody().write(resp);
-            }
-            else if (uri.matches("/library.html"))
+            } else if (uri.matches("/events.html"))
             {
-                resp = getFile("library.html");
+                resp = getFile("events.html");
                 t.getResponseHeaders().set("content-type", "text/html");
                 t.sendResponseHeaders(200, resp.length);
                 t.getResponseBody().write(resp);
-            }
-            else if (uri.matches("/refresh"))
+            } else if (uri.matches("/refresh"))
             {
                 resp = "false".getBytes();
                 t.getResponseHeaders().set("content-type", "attachment");
                 t.sendResponseHeaders(200, resp.length);
                 t.getResponseBody().write(resp);
-            }
-            else if (uri.matches("/transfer"))
+            } else if (uri.matches("/transfer"))
             {
                 resp = getFile("transfer.file");
                 t.getResponseHeaders().set("content-type", "attachment");
                 t.sendResponseHeaders(200, resp.length);
                 t.getResponseBody().write(resp);
-            }
-            else
+            } else
             {
                 resp = resp404.getBytes();
                 t.getResponseHeaders().set("content-type", "text/html");
@@ -369,11 +371,12 @@ public class Server
             if (uri.matches("/$"))
             {
                 // hate this but Java 8 affords not many better ways
-                String data = new BufferedReader(new InputStreamReader(t.getRequestBody())).lines().collect(Collectors.joining("\n"));
+                String data = new BufferedReader(new InputStreamReader(t.getRequestBody())).lines()
+                        .collect(Collectors.joining("\n"));
                 HashMap<String, String> form = parseForm(data);
                 if (form.keySet().contains("cat"))
                 {
-                    
+
                 }
                 byte[] resp = getHTML("index.html");
                 t.getResponseHeaders().set("content-type", "text/html");
@@ -390,29 +393,28 @@ public class Server
         public void handle(HttpExchange httpEx) throws IOException
         {
             this.t = httpEx;
-            String method =  t.getRequestMethod();
+            String method = t.getRequestMethod();
             String decodedURI = URLDecoder.decode(t.getRequestURI().toString(), StandardCharsets.UTF_8.name());
-           
+
             if (method.equals("GET"))
             {
                 String s = t.getRemoteAddress() + "| GET: " + decodedURI + " (HanRes)";
                 log(s);
                 System.out.println(s);
                 get(decodedURI);
-            }    
+            }
             t.close();
         }
 
         private void get(String uri) throws IOException
         {
             byte[] resp = getFile(uri.substring(1));
-            if (resp != null) 
+            if (resp != null)
             {
                 t.getResponseHeaders().set("content-type", "attachment");
                 t.sendResponseHeaders(200, resp.length);
                 t.getResponseBody().write(resp);
-            }
-            else
+            } else
             {
                 resp = resp404.getBytes();
                 t.getResponseHeaders().set("content-type", "text/html");
@@ -422,19 +424,21 @@ public class Server
         }
     }
 
-    private class HanMusic implements HttpHandler
+    private class HanEvents implements HttpHandler
     {
         HttpExchange t;
 
         public void handle(HttpExchange httpEx) throws IOException
         {
+            CreateEventsPage(getEventsToday());
+
             this.t = httpEx;
             String method = t.getRequestMethod();
             String decodedURI = URLDecoder.decode(t.getRequestURI().toString(), StandardCharsets.UTF_8.name());
 
             if (method.equals("GET"))
             {
-                String s = t.getRemoteAddress() + "| GET: " + decodedURI + " (HanMusic)";
+                String s = t.getRemoteAddress() + "| GET: " + decodedURI + " (HanEvents)";
                 log(s);
                 System.out.println(s);
                 get(decodedURI);
@@ -445,13 +449,12 @@ public class Server
         private void get(String uri) throws IOException
         {
             byte[] resp = getFile(uri.substring(1));
-            if (resp != null) 
+            if (resp != null)
             {
                 t.getResponseHeaders().set("content-type", "attachment");
                 t.sendResponseHeaders(200, resp.length);
                 t.getResponseBody().write(resp);
-            }
-            else
+            } else
             {
                 resp = resp404.getBytes();
                 t.getResponseHeaders().set("content-type", "text/html");
@@ -461,12 +464,12 @@ public class Server
         }
     }
 
-    //#endregion
-    
-    public static void main(String[] args) throws Exception 
+    // #endregion
+
+    public static void main(String[] args) throws Exception
     {
         Server server = new Server();
         server.start();
-    } 
+    }
 
 }
