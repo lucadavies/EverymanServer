@@ -83,6 +83,7 @@ public class Server
         {
             FileWriter writer = null;
             OffsetDateTime time = null;
+            String today = LocalDateTime.now().format(apiCallFormatter);
 
             writer = new FileWriter("events.html");
             writer.append("<!DOCTYPE html>");
@@ -95,7 +96,7 @@ public class Server
             writer.append("\n    </style>");
             writer.append("\n  </head>");
             writer.append("\n  <body>");
-            writer.append("\n    <h2>Today's Events</h2>");
+            writer.append("\n    <h2>[" + today + "] Today's Events</h2>");
             writer.append("\n    <table>");
             writer.append("\n      <thead>");
             writer.append("\n        <tr>");
