@@ -1,45 +1,79 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <title>
-            Everyman Server
-        </title>
-        <style>
-            html {
-                height: 100%;
-            }
-            body {
-                background-image: url('res/background.png');
-                background-position: center;
-                background-repeat: no-repeat; 
-                background-size: cover;
-            }
-            .header {
-                max-width: 500px;
-                margin: auto;  
-            }
-            .content {
-                max-width: 500px;
-                margin: auto;
-                padding: 10px;
-            }
-        </style>
-    </head>
-    <body style="font-family: Century Gothic;">
+
+<head>
+    <title>
+        Everyman Server
+    </title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        html {
+            height: 100%;
+        }
+
+        body {
+            background-image: url('res/background.png');
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: cover;
+        }
+
+        footer {
+            padding: 10px;
+            text-align: center;
+        }
+
+        .flex-container {
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+            margin: 10px;
+            padding: 10px;
+        }
+
+        .header {
+            max-width: 500px;
+            margin: auto;
+        }
+
+        #footer {
+            position: fixed;
+            left: 0px;
+            bottom: 0px;
+            height: 30px;
+            width: 100%;
+            background: #999;
+        }
+
+        .content {
+            max-width: 500px;
+            margin: auto;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body style="font-family: Century Gothic;">
+    <header>
         <div>
-            <span>Code maintained at <a href="https://github.com/lucadavies/EverymanServer">https://github.com/lucadavies/EverymanServer</a></span>
+            <img src="res/EverymanLogo.png" style="float: left; max-width: 10%; object-fit: contain; ">
         </div>
-        <div class="header">
-            <h1>
+        <div style="margin: auto; width: 50%;">
+            <h1 style="text-align: center;">
                 Everyman Theatre Test Server
             </h1>
-            <div class="content">
-                <h2>Testing...</h2>
-                <img src="res/EverymanLogo.png">
-                <p style="font-size:24px;">
-                    <a href="/events.html">Today's Events</a>
-                </p>
-            </div>
         </div>
-    </body>
+    </header>
+    <div class="content">
+        <img src="res/EverymanLogo.png" style="max-width: 100%;">
+        <p style="font-size:24px;">
+            <a href="/events.html">Today's Events</a>
+        </p>
+    </div>
+    <footer>
+        <span style="flex-grow: 2">Code maintained at <a
+                href="https://github.com/lucadavies/EverymanServer">https://github.com/lucadavies/EverymanServer</a></span>
+    </footer>
+</body>
+
 </html>
