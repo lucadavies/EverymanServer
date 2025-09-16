@@ -1,7 +1,3 @@
-const apiKey = "";
-
-var tableData = [];
-
 window.onload = function () {
     getEvents().then((events) => {
         createTable(events);
@@ -18,7 +14,7 @@ function createTable(events) {
 
     // Remove spinner.
     document.getElementById("loaderTable").remove();
-    
+
     // Clear existing table
     while (table.firstChild) {
         table.removeChild(table.firstChild);
@@ -71,7 +67,6 @@ function createTable(events) {
         row.appendChild(cell);
 
         tableBody.appendChild(row);
-        tableData.push(rowData);
     }
 
     table.appendChild(tableBody);
@@ -97,6 +92,7 @@ function getFormattedDateToday() {
 
 async function getEvents() {
 
+    const apiKey = await getAPIKey();
     const apiURL = "https://proxy.corsfix.com/?https://everymantheatre.yesplan.be/api/events/date:" + getFormattedDateToday() + "?api_key=" + apiKey;
 
     return await fetch(apiURL)
@@ -108,6 +104,23 @@ async function getEvents() {
         })
         .then(events => {
             return events
+        })
+        .catch(error => {
+            console.error("Error: ", error);
+        });
+}
+
+async function getAPIKey() {
+
+    return await fetch("/res/apiKey.txt")
+        .then(Response => {
+            if (!Response.ok) {
+                throw new Error("Failed to acquire API key.");
+            }
+            return Response.text();
+        })
+        .then(key => {
+            return key
         })
         .catch(error => {
             console.error("Error: ", error);
