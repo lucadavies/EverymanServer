@@ -415,7 +415,15 @@ public class Server
             byte[] resp = getFile(uri.substring(1));
             if (resp != null)
             {
-                t.getResponseHeaders().set("content-type", "attachment");
+                if (uri.matches(".+\\.js$"))
+                {
+                    t.getResponseHeaders().set("content-type", "application/javascript");
+                }
+                else
+                {
+                    t.getResponseHeaders().set("content-type", "attachment");
+                }
+                
                 t.sendResponseHeaders(200, resp.length);
                 t.getResponseBody().write(resp);
             } else
@@ -434,7 +442,7 @@ public class Server
 
         public void handle(HttpExchange httpEx) throws IOException
         {
-            CreateEventsPage(getEventsToday());
+            //CreateEventsPage(getEventsToday());
 
             this.t = httpEx;
             String method = t.getRequestMethod();
