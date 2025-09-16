@@ -1,40 +1,22 @@
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.BufferedReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.InetSocketAddress;
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.net.URLDecoder;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
-
-import org.json.*;
 
 public class Server
 {
@@ -50,8 +32,6 @@ public class Server
 
     public Server() // throws Exception
     {
-        Logger.getLogger("org.jaudiotagger").setLevel(Level.OFF);
-        System.out.println("Reading audio files...");
         System.out.println("Server booting...");
 
         try
@@ -77,149 +57,6 @@ public class Server
         System.out.println("Server running...");
     }
 
-    private void CreateEventsPage(ArrayList<JSONObject> events)
-    {
-        try
-        {
-            FileWriter writer = null;
-            OffsetDateTime time = null;
-            String today = LocalDateTime.now().format(apiCallFormatter);
-
-            writer = new FileWriter("events.html");
-            writer.append("<!DOCTYPE html>");
-            writer.append("\n<html>");
-            writer.append("\n  <head>");
-            writer.append("\n    <style>");
-            writer.append("\n      html * { font-family: Century Gothic; }");
-            writer.append("\n      table, th, td { font-size: 24px; border: 1px solid black; border-collapse: collapse; }");
-            writer.append("\n      th, td { padding: 15px; }");
-            writer.append("\n    </style>");
-            writer.append("\n  </head>");
-            writer.append("\n  <body>");
-            writer.append("\n    <h2>[" + today + "] Today's Events</h2>");
-            writer.append("\n    <table>");
-            writer.append("\n      <thead>");
-            writer.append("\n        <tr>");
-            writer.append("\n          <th>Name</th>");
-            writer.append("\n          <th>Start</th>");
-            writer.append("\n          <th>End</th>");
-            writer.append("\n          <th>Location</th>");
-            writer.append("\n        </tr>");
-            writer.append("\n      </thead>");
-            writer.append("\n      <tbody>");
-
-            for (JSONObject event : events)
-            {
-                String startTime = OffsetDateTime.parse(event.getString("starttime"), DateTimeFormatter.ISO_OFFSET_DATE_TIME).format(eventDisplayFormatter);
-                String endTime = OffsetDateTime.parse(event.getString("endtime"), DateTimeFormatter.ISO_OFFSET_DATE_TIME).format(eventDisplayFormatter);
-
-                writer.append("\n        <tr>");
-                writer.append("\n          <td>" + event.getString("name") + "</td>");
-                writer.append("\n          <td>" + startTime + "</td>");
-                writer.append("\n          <td>" + endTime + "</td>");
-                writer.append("\n          <td>" + event.getJSONArray("locations").getJSONObject(0).getString("name") + "</td>");
-                writer.append("\n        </tr>");
-            }
-
-            writer.append("\n      </tbody>");
-            writer.append("\n    </table>");
-            writer.append("\n  </body>");
-            writer.append("\n</html>");
-
-            if (writer != null)
-            {
-                writer.close();
-            }
-        }
-        catch (IOException e)
-        {
-            System.out.println("Error creating events page.");
-            System.out.println(e.getMessage());
-        }
-    }
-
-    private JSONObject getEvents()
-    {
-        LocalDateTime today = LocalDateTime.now();
-        String apiCall = "https://everymantheatre.yesplan.be/api/events/date:" + today.format(apiCallFormatter) + "?api_key=" + yesPlanApiKey;
-
-        String s = "Getting events for today (" + today.format(apiCallFormatter) + ")";
-        System.out.println(s);
-
-        URL url = null;
-        JSONObject apiResp = null;
-        try
-        {
-            url = new URI(apiCall).toURL();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream(), "UTF-8")))
-            {
-                apiResp = new JSONObject(reader.readLine());
-            }
-            catch (IOException e)
-            {
-                System.out.println("Error opening stream to read HTTP response.");
-                System.out.println(e.getMessage());
-            }
-        }
-        catch (MalformedURLException e)
-        {
-            System.out.println("Could not create URL from URI from string: " + apiCall);
-            System.out.println(e.getMessage());
-        }
-        catch (URISyntaxException e)
-        {
-            System.out.println("URI " + apiCall + " has invalid syntax.");
-            System.out.println(e.getMessage());
-        }
-
-        return apiResp;
-    }
-
-    private JSONObject getLatestEvent()
-    {
-        JSONObject apiResp = getEvents();
-
-        if (apiResp == null)
-        {
-            return null;
-        }
-
-        JSONArray events = apiResp.getJSONArray("data");
-        // ArrayList<OffsetDateTime> dateTimes = new ArrayList<OffsetDateTime>();
-        // JSONObject event = null;
-
-        // for (int i = 0; i < events.length() - 1; i++)
-        // {
-        // event = (JSONObject) events.get(i);
-        // dateTimes.add(OffsetDateTime.parse(event.getString("starttime"),
-        // DateTimeFormatter.ISO_OFFSET_DATE_TIME));
-        // }
-
-        // System.out.println(Collections.min(dateTimes));
-
-        return events.getJSONObject(0);
-    }
-
-    private ArrayList<JSONObject> getEventsToday()
-    {
-        ArrayList<JSONObject> events = new ArrayList<>();
-        JSONObject apiResp = getEvents();
-
-        if (apiResp == null)
-        {
-            return events;
-        }
-
-        JSONArray jsonEvents = apiResp.getJSONArray("data");
-
-        for (int i = 0; i < jsonEvents.length(); i++)
-        {
-            events.add(jsonEvents.getJSONObject(i));
-        }
-
-        return events;
-
-    }
     // #region Helper Methods
 
     private byte[] getHTML(String name) throws IOException
