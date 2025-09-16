@@ -16,6 +16,9 @@ function createTable(events) {
     var columns = parseInt(titleHeadings.length);
     var rows = parseInt(events["data"].length);
 
+    // Remove spinner.
+    document.getElementById("loaderTable").remove();
+    
     // Clear existing table
     while (table.firstChild) {
         table.removeChild(table.firstChild);
