@@ -1,6 +1,7 @@
 window.onload = function () {
     getEvents().then((events) => {
         createTable(events);
+        // TODO: supprot pagination of API calls
     });
     setTitle();
 };
