@@ -1,8 +1,5 @@
 window.onload = function () {
-    getEvents().then((events) => {
-        createTable(events);
-        // TODO: supprot pagination of API calls
-    });
+    getEvents().then(createTable);
     setTitle();
 };
 
@@ -92,6 +89,7 @@ function getFormattedDateToday() {
 }
 
 async function getEvents() {
+    // TODO: supprot pagination of API calls
 
     const apiKey = await getAPIKey();
     const apiURL = "https://proxy.corsfix.com/?https://everymantheatre.yesplan.be/api/events/date:" + getFormattedDateToday() + "?api_key=" + apiKey;
@@ -102,9 +100,6 @@ async function getEvents() {
                 throw new Error("API call failed.");
             }
             return Response.json();
-        })
-        .then(events => {
-            return events
         })
         .catch(error => {
             console.error("Error: ", error);
@@ -119,9 +114,6 @@ async function getAPIKey() {
                 throw new Error("Failed to acquire API key.");
             }
             return Response.text();
-        })
-        .then(key => {
-            return key
         })
         .catch(error => {
             console.error("Error: ", error);
