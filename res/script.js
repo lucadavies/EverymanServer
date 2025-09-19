@@ -46,6 +46,9 @@ function createTable(events) {
         var row = document.createElement("tr");
         var cell;
         var time;
+        var day;
+        var month;
+        var year;
         var hours;
         var minutes;
 
@@ -55,17 +58,22 @@ function createTable(events) {
 
         cell = document.createElement("td");
         time = new Date(events[i]["starttime"]);
+        day = time.getDay() < 10 ? '0' + time.getDay() : time.getDay();
+        month = (time.getMonth() + 1) < 10 ? '0' + (time.getMonth() + 1): (time.getMonth() + 1);
+        year = time.getFullYear();
         hours = time.getHours() < 10 ? '0' + time.getHours() : time.getHours();
         minutes = time.getMinutes() < 10 ? '0' + time.getMinutes() : time.getMinutes();
-        //cell.textContent = hours + ":" + minutes;
-        cell.textContent = time;
+        cell.textContent = day + "/" + month + "/" + year + " " + hours + ":" + minutes;
         row.appendChild(cell);
 
         cell = document.createElement("td");
         time = new Date(events[i]["endtime"]);
+       day = time.getDay() < 10 ? '0' + time.getDay() : time.getDay();
+        month = (time.getMonth() + 1) < 10 ? '0' + (time.getMonth() + 1): (time.getMonth() + 1);
+        year = time.getFullYear();
         hours = time.getHours() < 10 ? '0' + time.getHours() : time.getHours();
         minutes = time.getMinutes() < 10 ? '0' + time.getMinutes() : time.getMinutes();
-        cell.textContent = hours + ":" + minutes;
+        cell.textContent = day + "/" + month + "/" + year + " " + hours + ":" + minutes;
         row.appendChild(cell);
 
         cell = document.createElement("td");
