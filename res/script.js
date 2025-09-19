@@ -1,9 +1,12 @@
 window.onload = function () {
-    getEvents().then(createTable);
+    getAPIKey()
+        .then(getAllEvents)
+        .then(createTable);
     setTitle();
 };
 
 function createTable(events) {
+    console.log(events);
     var table = document.getElementById("tabEvents");
     const titleHeadings = ["Name", "Start", "End", "Location"];
 
@@ -61,7 +64,14 @@ function createTable(events) {
         row.appendChild(cell);
 
         cell = document.createElement("td");
-        cell.textContent = events["data"][i]["locations"]["0"]["name"];
+        try {
+            cell.textContent = events["data"][i]["locations"]["0"]["name"];
+        }
+        catch (error) {
+            // TODO: do better than this lazy handling for events having no location.
+            console.error(error);
+        }
+
         row.appendChild(cell);
 
         tableBody.appendChild(row);
@@ -88,13 +98,20 @@ function getFormattedDateToday() {
     return day + "-" + month + "-" + year;
 }
 
-async function getEvents() {
-    // TODO: supprot pagination of API calls
-
-    const apiKey = await getAPIKey();
+async function getTodayEvents(apiKey) {
     const apiURL = "https://proxy.corsfix.com/?https://everymantheatre.yesplan.be/api/events/date:" + getFormattedDateToday() + "?api_key=" + apiKey;
+    return await makeYesPlanAPICall(apiURL, apiKey);
+}
 
-    return await fetch(apiURL)
+async function getAllEvents(apiKey) {
+    //TODO show dates in returned table to check events retain their order (then fix when )
+
+    const apiURL = "https://proxy.corsfix.com/?https://everymantheatre.yesplan.be/api/events?api_key=" + apiKey;
+    return await makeYesPlanAPICall(apiURL, apiKey);
+}
+
+async function makeYesPlanAPICall(apiUrl, apiKey) {
+    var resp = await fetch(apiUrl)
         .then(Response => {
             if (!Response.ok) {
                 throw new Error("API call failed.");
@@ -104,6 +121,19 @@ async function getEvents() {
         .catch(error => {
             console.error("Error: ", error);
         });
+    if (resp["pagination"]["next"] === undefined) {
+        console.log("One page of events.");
+        return resp;
+    }
+    else {
+        console.log("Getting next page...");
+
+        const nextURL = "https://proxy.corsfix.com/?" + resp["pagination"]["next"] + "&api_key=" + apiKey
+        return makeYesPlanAPICall(nextURL, apiKey).then(nextResp => {
+            const obj = { "pagination": nextResp["pagination"], "data": resp["data"].concat(nextResp["data"]) };
+            return obj;
+        });
+    }
 }
 
 async function getAPIKey() {
