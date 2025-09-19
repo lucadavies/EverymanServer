@@ -6,6 +6,10 @@ window.onload = function () {
     setTitle();
 };
 
+/**
+ * Populates table with events
+ * @param {*} events Events from YesPlan API. Must be stripped pagination, providing only the array behind the "data" key.
+ */
 function createTable(events) {
     console.log(events);
     var table = document.getElementById("tabEvents");
@@ -82,11 +86,17 @@ function createTable(events) {
     table.appendChild(tableBody);
 }
 
+/**
+ * Sets the title of the page to include today's date.
+ */
 function setTitle() {
     var title = document.getElementById("title");
     title.textContent = "[" + getFormattedDateToday() + "] Today's Events:";
 }
 
+/**
+ * Returns today's date formatted in dd-mm-yyyy format for YesPlan API call argument.
+ */
 function getFormattedDateToday() {
     var date = new Date();
 
@@ -100,21 +110,43 @@ function getFormattedDateToday() {
     return day + "-" + month + "-" + year;
 }
 
+/**
+ * Makes a call to the YesPlan API "/events/date:<date>"".
+ * @param {*} apiKey YesPlan API key.
+ * @returns An array of events for today.
+ */
 async function getTodayEvents(apiKey) {
     const apiURL = "https://proxy.corsfix.com/?https://everymantheatre.yesplan.be/api/events/date:" + getFormattedDateToday() + "?api_key=" + apiKey;
     return await makeYesPlanAPICall(apiURL, apiKey);
 }
 
+/**
+ * Makes a call to the YesPlan API "/events".
+ * @param {*} apiKey YesPlan API key.
+ * @returns An array of ALL events.
+ */
 async function getAllEvents(apiKey) {
     const apiURL = "https://proxy.corsfix.com/?https://everymantheatre.yesplan.be/api/events?api_key=" + apiKey;
     const allResps = await makeYesPlanAPICall(apiURL, apiKey);
     return allResps["data"];
 }
 
+/**
+ * Sorts the provided events based on date, ascending.
+ * @param {*} events The array of events, as returned by getAllEvents and similar.
+ * @returns The events sorted by date, ascending.
+ */
 function sortEvents(events) {
     return events.sort((a, b) => { return new Date(a["starttime"]).getTime() - new Date(b["starttime"]).getTime() });
 }
 
+// TODO make this method YesPlan API only
+/**
+ * Makes a call to the YesPlan API (or any URL, actually).
+ * @param {*} apiUrl The URL to GET from.
+ * @param {*} apiKey The YesPlan API key.
+ * @returns The JSON response from YesPlan.
+ */
 async function makeYesPlanAPICall(apiUrl, apiKey) {
     var resp = await fetch(apiUrl)
         .then(Response => {
@@ -141,6 +173,10 @@ async function makeYesPlanAPICall(apiUrl, apiKey) {
     }
 }
 
+/**
+ * Gets the API key from the server#s local storage. This is likely not a secure way of doing this AT ALL, but is not a concern for the projected use case (internal network only).
+ * @returns The API key as a string.
+ */
 async function getAPIKey() {
 
     return await fetch("/res/apiKey.txt")
