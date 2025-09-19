@@ -1,6 +1,7 @@
 window.onload = function () {
     getAPIKey()
         .then(getAllEvents)
+        .then(sortEvents)
         .then(createTable);
     setTitle();
 };
@@ -11,7 +12,7 @@ function createTable(events) {
     const titleHeadings = ["Name", "Start", "End", "Location"];
 
     var columns = parseInt(titleHeadings.length);
-    var rows = parseInt(events["data"].length);
+    var rows = parseInt(events.length);
 
     // Remove spinner.
     document.getElementById("loaderTable").remove();
@@ -46,18 +47,19 @@ function createTable(events) {
         var minutes;
 
         cell = document.createElement("td");
-        cell.textContent = events["data"][i]["name"];
+        cell.textContent = events[i]["name"];
         row.appendChild(cell);
 
         cell = document.createElement("td");
-        time = new Date(events["data"][i]["starttime"]);
+        time = new Date(events[i]["starttime"]);
         hours = time.getHours() < 10 ? '0' + time.getHours() : time.getHours();
         minutes = time.getMinutes() < 10 ? '0' + time.getMinutes() : time.getMinutes();
-        cell.textContent = hours + ":" + minutes;
+        //cell.textContent = hours + ":" + minutes;
+        cell.textContent = time;
         row.appendChild(cell);
 
         cell = document.createElement("td");
-        time = new Date(events["data"][i]["endtime"]);
+        time = new Date(events[i]["endtime"]);
         hours = time.getHours() < 10 ? '0' + time.getHours() : time.getHours();
         minutes = time.getMinutes() < 10 ? '0' + time.getMinutes() : time.getMinutes();
         cell.textContent = hours + ":" + minutes;
@@ -65,7 +67,7 @@ function createTable(events) {
 
         cell = document.createElement("td");
         try {
-            cell.textContent = events["data"][i]["locations"]["0"]["name"];
+            cell.textContent = events[i]["locations"]["0"]["name"];
         }
         catch (error) {
             // TODO: do better than this lazy handling for events having no location.
@@ -104,10 +106,13 @@ async function getTodayEvents(apiKey) {
 }
 
 async function getAllEvents(apiKey) {
-    //TODO show dates in returned table to check events retain their order (then fix when )
-
     const apiURL = "https://proxy.corsfix.com/?https://everymantheatre.yesplan.be/api/events?api_key=" + apiKey;
-    return await makeYesPlanAPICall(apiURL, apiKey);
+    const allResps = await makeYesPlanAPICall(apiURL, apiKey);
+    return allResps["data"];
+}
+
+function sortEvents(events) {
+    return events.sort((a, b) => { return new Date(a["starttime"]).getTime() - new Date(b["starttime"]).getTime() });
 }
 
 async function makeYesPlanAPICall(apiUrl, apiKey) {
