@@ -1,6 +1,6 @@
 window.onload = function () {
     getAPIKey()
-        .then(getAllEvents)
+        .then(getTodayEvents)
         .then(sortEvents)
         .then(createTable);
     setTitle();
@@ -11,7 +11,6 @@ window.onload = function () {
  * @param {*} events Events from YesPlan API. Must be stripped pagination, providing only the array behind the "data" key.
  */
 function createTable(events) {
-    console.log(events);
     var table = document.getElementById("tabEvents");
     const titleHeadings = ["Name", "Start", "End", "Location"];
 
@@ -117,7 +116,8 @@ function getFormattedDateToday() {
  */
 async function getTodayEvents(apiKey) {
     const apiURL = "https://proxy.corsfix.com/?https://everymantheatre.yesplan.be/api/events/date:" + getFormattedDateToday() + "?api_key=" + apiKey;
-    return await makeYesPlanAPICall(apiURL, apiKey);
+    const allResps = await makeYesPlanAPICall(apiURL, apiKey);
+    return allResps["data"];
 }
 
 /**
@@ -159,12 +159,9 @@ async function makeYesPlanAPICall(apiUrl, apiKey) {
             console.error("Error: ", error);
         });
     if (resp["pagination"]["next"] === undefined) {
-        console.log("One page of events.");
         return resp;
     }
     else {
-        console.log("Getting next page...");
-
         const nextURL = "https://proxy.corsfix.com/?" + resp["pagination"]["next"] + "&api_key=" + apiKey
         return makeYesPlanAPICall(nextURL, apiKey).then(nextResp => {
             const obj = { "pagination": nextResp["pagination"], "data": resp["data"].concat(nextResp["data"]) };
